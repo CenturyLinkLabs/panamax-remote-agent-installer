@@ -6,6 +6,15 @@ CERT_DIR="${WORK_DIR}/certs"
 CERT_IMAGE="centurylink/openssl:latest"
 HOST_PORT=3001
 
+ADAPTER_IMAGE_NAME="centurylink/panamax-fleet-adapter"
+ADAPTER_CONTAINER_NAME="pmx_adapter"
+
+AGENT_IMAGE_NAME="centurylink/panamax-remote-agent"
+AGENT_CONTAINER_NAME="pmx_agent"
+
+docker rm -f ${AGENT_CONTAINER_NAME} > /dev/null 2>&1
+docker rm -f ${ADAPTER_CONTAINER_NAME} > /dev/null 2>&1
+
 mkdir -p ${CERT_DIR}
 
 common_name=""
@@ -39,16 +48,8 @@ echo "============================== START =============================="
 echo "https://${common_name}:${host_port}${SEP}${PMX_AGENT_ID}${SEP}${PMX_AGENT_PASSWORD}${SEP}${PUBLIC_CERT}" | base64
 echo "============================== END =============================="
 
-adapter_dir="adapter"
-adapter_name="centurylink/panamax-fleet-adapter"
-adapter_container_name="pmx_adapter"
-
-agent_dir="panamax-remote-agent"
-agent_name="centurylink/panamax-remote-agent"
-agent_container_name="pmx_agent"
-
-docker run -d --name ${adapter_container_name} -v /var/run/docker.sock:/run/docker.sock --expose 4567 ${adapter_name}:latest
-docker run -d --name ${agent_container_name} --link ${adapter_container_name}:adapter -e REMOTE_AGENT_ID=${PMX_AGENT_ID} -e REMOTE_AGENT_API_KEY=${PMX_AGENT_PASSWORD}  -v ${CERT_DIR}:/usr/local/share/certs -p ${host_port}:3000 ${agent_name}:latest
+docker run -d --name ${ADAPTER_CONTAINER_NAME} -v /var/run/docker.sock:/run/docker.sock --expose 4567 ${ADAPTER_IMAGE_NAME}:latest
+docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=${PMX_AGENT_ID} -e REMOTE_AGENT_API_KEY=${PMX_AGENT_PASSWORD}  -v ${CERT_DIR}:/usr/local/share/certs -p ${host_port}:3000 ${AGENT_IMAGE_NAME}:latest
 
 
 #1. Gen the Cert
