@@ -40,6 +40,9 @@ else
   source ${WORK_DIR}/.env
 fi
 
+echo "Below are the conainer ids for the adapter and agent"
+docker run -d --name ${ADAPTER_CONTAINER_NAME} -v /var/run/docker.sock:/run/docker.sock --expose 4567 ${ADAPTER_IMAGE_NAME}:latest
+docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=${PMX_AGENT_ID} -e REMOTE_AGENT_API_KEY=${PMX_AGENT_PASSWORD}  -v ${CERT_DIR}:/usr/local/share/certs -p ${host_port}:3000 ${AGENT_IMAGE_NAME}:latest
 
 echo ""
 echo ""
@@ -47,7 +50,3 @@ echo "Copy and paste the following to your local panamax instance to connect to 
 echo "============================== START =============================="
 echo "https://${common_name}:${host_port}${SEP}${PMX_AGENT_ID}${SEP}${PMX_AGENT_PASSWORD}${SEP}${PUBLIC_CERT}" | base64
 echo "============================== END =============================="
-
-echo "Below are the conainer ids for the adapter and agent"
-docker run -d --name ${ADAPTER_CONTAINER_NAME} -v /var/run/docker.sock:/run/docker.sock --expose 4567 ${ADAPTER_IMAGE_NAME}:latest
-docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=${PMX_AGENT_ID} -e REMOTE_AGENT_API_KEY=${PMX_AGENT_PASSWORD}  -v ${CERT_DIR}:/usr/local/share/certs -p ${host_port}:3000 ${AGENT_IMAGE_NAME}:latest
