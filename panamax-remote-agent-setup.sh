@@ -19,7 +19,7 @@ mkdir -p ${CERT_DIR}
 
 common_name=""
 while [[ "${common_name}" == "" ]]; do
-    read -p "Please enter CN (common name, exclude https://) for SSL Cert: " common_name
+  read -p "Please enter the public hostname (dev.example.com) or IP Address (10.3.4.5): " common_name
 done
 
 read -p "Please enter the port you wish the agent to run on (${HOST_PORT}): " host_port
@@ -31,13 +31,13 @@ url='${common_name}'
 PUBLIC_CERT="$(<${CERT_DIR}/${KEY_NAME}.crt)"
 
 if [[ ! -f ${CERT_DIR}/.env ]]; then
-    PMX_AGENT_ID="`uuidgen`"
-    PMX_AGENT_PASSWORD="`uuidgen | base64`"
-    echo "PMX_AGENT_ID=\"${PMX_AGENT_ID}\"
-    PMX_AGENT_PASSWORD=\"${PMX_AGENT_PASSWORD}\"" > .env
-    sudo mv .env ${WORK_DIR}
+  PMX_AGENT_ID="`uuidgen`"
+  PMX_AGENT_PASSWORD="`uuidgen | base64`"
+  echo "PMX_AGENT_ID=\"${PMX_AGENT_ID}\"
+  PMX_AGENT_PASSWORD=\"${PMX_AGENT_PASSWORD}\"" > .env
+  sudo mv .env ${WORK_DIR}
 else
-    source ${WORK_DIR}/.env
+  source ${WORK_DIR}/.env
 fi
 
 
