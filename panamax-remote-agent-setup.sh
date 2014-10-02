@@ -5,6 +5,7 @@ WORK_DIR="/home/core/pmx_agent"
 CERT_DIR="${WORK_DIR}/certs"
 CERT_IMAGE="centurylink/openssl:latest"
 HOST_PORT=3001
+HOST_IP=`ip -f inet addr show dev docker0 | sed -n 's/^ *inet *\([.0-9]*\).*/\1/p'`
 
 ADAPTER_IMAGE_NAME="centurylink/panamax-fleet-adapter"
 ADAPTER_CONTAINER_NAME="pmx_adapter"
@@ -41,7 +42,7 @@ else
 fi
 
 echo "Below are the conainer ids for the adapter and agent"
-docker run -d --name ${ADAPTER_CONTAINER_NAME} -v /var/run/docker.sock:/run/docker.sock --expose 4567 ${ADAPTER_IMAGE_NAME}:latest
+docker run -d --name ${ADAPTER_CONTAINER_NAME} -e "FLEETCTL_ENDPOINT=http://${HOST_IP}:4001" ${ADAPTER_IMAGE_NAME}:latest
 docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=${PMX_AGENT_ID} -e REMOTE_AGENT_API_KEY=${PMX_AGENT_PASSWORD}  -v ${CERT_DIR}:/usr/local/share/certs -p ${host_port}:3000 ${AGENT_IMAGE_NAME}:latest
 
 echo ""
