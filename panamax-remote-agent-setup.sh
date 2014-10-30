@@ -91,11 +91,6 @@ function set_env_var {
     echo export $1=$2 >> "$ENV"
 }
 
-function set_adapter_config {
-    sed -i "/$1=/d" "${ADAPTER_CONFIG}/.config"
-    echo $1=$2 >> "${ADAPTER_CONFIG}/.config"
-}
-
 function set_agent_config {
     touch "${AGENT_CONFIG}/.config"
     sed -i "/$1=/d" "${AGENT_CONFIG}/.config"
@@ -125,7 +120,6 @@ function install_adapter {
     if [[ ${cluster_type} == 0 ]]; then
         adapter_name="Kubernetes"
         adapter_image_name=${ADAPTER_IMAGE_KUBER}
-        adapter_env_var_name="KUBERNETES_API_ENDPOINT"
 
         while [[ "${api_url}" == "" ]]; do
           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100:8080/): " api_url
@@ -136,25 +130,20 @@ function install_adapter {
         read -p "Enter password for ${adapter_name} API:" api_password; echo
         stty echo
 
-        set_adapter_config PMX_ADAPTER_API_URL "${api_url}"
-        set_adapter_config PMX_ADAPTER_API_USERNAME "${api_username}"
-        set_adapter_config PMX_ADAPTER_API_PASSWORD "${api_password}"
+        adapter_env="-e KUBERNETES_MASTER=${api_url} -e KUBERNETES_USERNAME=${api_username} -e KUBERNETES_PASSWORD=${api_password}"
     else
         adapter_image_name=${ADAPTER_IMAGE_FLEET}
-        adapter_env_var_name="FLEETCTL_ENDPOINT"
 
         while [[ "${api_url}" == "" ]]; do
           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100:8080/): " api_url
         done
 
-        set_adapter_config "${adapter_env_var_name}" "${api_url}"
+        adapter_env="-e FLEETCTL_ENDPOINT=${api_url}"
     fi
-
-    set_adapter_config "PMX_ADAPTER_IMAGE_NAME" \"${adapter_image_name}\"
 
     echo -e "\nStarting Panamax ${adapter_name} adapter:"
     download_image ${adapter_image_name}
-    docker run -d --name ${ADAPTER_CONTAINER_NAME} -e ${adapter_env_var_name}="${api_url}" -e API_PASSWORD=${api_password} -e API_USERNAME=${api_username}  -v ${ADAPTER_CONFIG}:/usr/local/share/config --restart=always ${adapter_image_name}
+    docker run -d --name ${ADAPTER_CONTAINER_NAME} ${adapter_env} --restart=always ${adapter_image_name}
 }
 
 function install_agent {
