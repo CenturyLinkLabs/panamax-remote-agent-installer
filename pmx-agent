@@ -2,6 +2,8 @@
 
 DOCUMENTATION_URL="http://panamax.io"
 DOCKER_HUB_REPO_URL="https://index.docker.io/v1/repositories"
+SETUP_UPDATE_URL="http://download.panamax.io/agent/.versions"
+SETUP_LATEST_VERSION_URL="http://download.panamax.io/agent/panamax_agent_latest.tar.gz"
 SEP='|'
 KEY_NAME="pmx_remote_agent"
 WORK_DIR="$(pwd)"
@@ -28,6 +30,7 @@ echo_checkUpdate="check:         Checks for available updates for Panamax agent/
 echo_uninstall="delete:        Uninstalls Panamax remote agent/adapter."
 echo_help="help:          Show this help"
 echo_debug="debug:         Display your current Panamax settings."
+echo_token="token:         Display your current Panamax remote agent token."
 
 function display_logo {
     tput clear
@@ -54,15 +57,32 @@ function cmd_exists() {
     done
 }
 
-function get_latest_tag_for_image {
-    local image_name=$(echo $1 | sed s#\:.*##g)
-    local image_tags=$(curl --silent $DOCKER_HUB_REPO_URL/$image_name/tags  | grep -o "[0-9]*\.[0-9]*\.[0-9]*"  | awk '{ print $1}')
-    local arr2=( $(
-    for tag in "${image_tags[@]}"
+function get_latest_version {
+    local versions=($1)
+    local arr_versions=( $(
+    for tag in "${versions[@]}"
     do
         echo "$tag" | sed 's/\b\([0-9]\)\b/0\1/g'
     done | sort -r | sed 's/\b0\([0-9]\)/\1/g') )
-    echo "${arr2[0]}"
+    echo "${arr_versions[0]}"
+}
+
+function get_latest_tag_for_image {
+    local image_name=$(echo $1 | sed s#\:.*##g)
+    local image_tags=$(curl --silent $DOCKER_HUB_REPO_URL/$image_name/tags  | grep -o "[0-9]*\.[0-9]*\.[0-9]*"  | awk '{ print $1}')
+    local latest_version=$(get_latest_version $image_tags)
+    echo $latest_version
+}
+
+function check_for_setup_update {
+    if [[ -f "$ENV" ]]; then
+        source "$ENV"
+        local version_list=$(curl -sL $SETUP_UPDATE_URL | grep tar)
+        local latest_version=$(get_latest_version $version_list)
+        if [[ "$PMX_SETUP_VERSION" != "$latest_version" ]]; then
+          echo "*** Panamax Installer is out of date! Please run ($ curl $SETUP_LATEST_VERSION_URL | bash) to update. ***"
+        fi
+    fi
 }
 
 function check_update {
@@ -76,7 +96,7 @@ function check_update {
 }
 
 function info {
-    echo -e "\nLocal Panamax component versions: \nAdapter:$PMX_ADAPTER_VERSION \nAgent:$PMX_AGENT_VERSION\n"
+    echo -e "\nLocal Panamax Installer version:\n$PMX_SETUP_VERSION\nLocal Panamax component versions: \nAdapter:$PMX_ADAPTER_VERSION \nAgent:$PMX_AGENT_VERSION\n"
 }
 
 function validate_install {
@@ -194,7 +214,7 @@ function install {
     echo -e "\nInstalling panamax remote agent/adapter..."
     install_adapter
     install_agent
-    set_env_var PMX_INSTALLER_VERSION \"$(<"$CWD"\.version)\"
+    set_env_var PMX_SETUP_VERSION \"$(<"$CWD"\.version)\"
 }
 
 function stop {
@@ -219,6 +239,7 @@ function update {
     download_image "${PMX_ADAPTER_IMAGE_NAME}"
     download_image "${AGENT_IMAGE}"
     restart
+    check_for_setup_update
 }
 
 function reinstall {
@@ -236,8 +257,13 @@ function print_agent_key {
 }
 
 function debug {
-    print_agent_key
+    validate_install
     cat "$ENV"
+}
+
+function token {
+    validate_install
+    print_agent_key
 }
 
 function show_help {
@@ -272,6 +298,9 @@ function read_params {
         debug)
         operation=debug
         ;;
+        token)
+        operation=token
+        ;;
         --help|-h|help)
         show_help;
         exit 1;
@@ -303,10 +332,11 @@ function main {
             uninstall) uninstall;;
             help) show_help;;
             debug) debug;;
+            token) token;;
         esac
     else
         PS3="Please select one of the preceding options: "
-        select operation in "$echo_install" "$echo_restart" "$echo_reinstall" "$echo_checkUpdate" "$echo_update" "$echo_uninstall" "$echo_help" "$echo_debug" "quit"; do
+        select operation in "$echo_install" "$echo_restart" "$echo_reinstall" "$echo_checkUpdate" "$echo_update" "$echo_uninstall" "$echo_help" "$echo_debug" "$echo_token" "quit"; do
         case $operation in
             "$echo_install") install; break;;
             "$echo_reinstall") reinstall; break;;
@@ -317,6 +347,7 @@ function main {
             "$echo_uninstall") uninstall; break;;
             "$echo_help") show_help; break;;
             "$echo_debug")  debug; break;;
+            "$echo_token")  token; break;;
             quit) exit 0; break;;
         esac
         done
