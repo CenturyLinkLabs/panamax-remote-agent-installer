@@ -78,7 +78,7 @@ function check_for_setup_update {
     if [[ "$PMX_SETUP_VERSION" != "" ]]; then
         local version_list=$(curl -sL $SETUP_UPDATE_URL | grep -o "[0-9]*\.[0-9]*\.[0-9]*")
         local latest_version=$(get_latest_version $version_list)
-        [[ "$PMX_SETUP_VERSION" != "$latest_version" ]] && { echo "*** Panamax Remote Agent Installer is out of date! Please run ($ curl $SETUP_LATEST_VERSION_URL | bash && cd ~/pmx-agent && ./pmx-agent update) to update. ***"; }
+        [[ "$PMX_SETUP_VERSION" != "$latest_version" ]] && { echo "*** Panamax Remote Agent Installer is out of date! Please run ($ curl $SETUP_LATEST_VERSION_URL | bash && cd ~/pmx-agent && ./pmx-agent reinstall) to update. ***"; }
     fi
 }
 
