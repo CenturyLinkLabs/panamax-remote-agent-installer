@@ -17,8 +17,8 @@ if [[ "$#" != "2" ]]; then
 fi
 
 git_branch="$1"
-next_version="pmx-agent-$2.tar.gz"
-latest_version="pmx-agent-latest.tar.gz"
+next_version="panamax-agent-$2.tar.gz"
+latest_version="panamax-agent-latest.tar.gz"
 
 mkdir -p installs
 rm -Rf panamax-remote-agent-installer

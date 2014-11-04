@@ -1,8 +1,13 @@
 #!/bin/sh
-
 installer='pmx-agent-latest.tar.gz'
 destination=~/pmx-agent
 curl -O "http://download.panamax.io/agent/$installer"
 mkdir -p ${destination} && tar -C ${destination} -zxvf ${installer}
-sudo ln -sf "$destination"/pmx-agent /usr/local/bin/pmx-agent
-pmx-agent
+sudo ln -sf "$destination"/pmx-agent /usr/local/bin/pmx-agent > /dev/null 2>&1
+if [[ "$?" != "0" ]]; then
+    echo "Execute cd $destination && ./pmx-agent to invoke agent setup script."
+    cd $destination
+    sudo ./pmx-agent
+else
+     sudo pmx-agent
+fi

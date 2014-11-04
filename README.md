@@ -1,2 +1,0 @@
-panamax-remote-agent-installer
-==============================
