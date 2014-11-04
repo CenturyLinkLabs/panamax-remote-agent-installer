@@ -3,7 +3,7 @@
 DOCUMENTATION_URL="http://panamax.io"
 DOCKER_HUB_REPO_URL="https://index.docker.io/v1/repositories"
 SETUP_UPDATE_URL="http://download.panamax.io/agent/.versions"
-SETUP_LATEST_VERSION_URL="http://download.panamax.io/agent/panamax-agent-latest.tar.gz"
+SETUP_LATEST_VERSION_URL="http://download.panamax.io/agent/pmx-agent-install"
 SEP='|'
 KEY_NAME="pmx_remote_agent"
 WORK_DIR="$(pwd)"
@@ -78,7 +78,7 @@ function check_for_setup_update {
     if [[ "$PMX_SETUP_VERSION" != "" ]]; then
         local version_list=$(curl -sL $SETUP_UPDATE_URL | grep -o "[0-9]*\.[0-9]*\.[0-9]*")
         local latest_version=$(get_latest_version $version_list)
-        [[ "$PMX_SETUP_VERSION" != "$latest_version" ]] && { echo "*** Panamax shell client is out of date! Please run ($ curl $SETUP_LATEST_VERSION_URL | bash) to update. ***"; }
+        [[ "$PMX_SETUP_VERSION" != "$latest_version" ]] && { echo "*** Panamax Remote Agent Installer is out of date! Please run ($ curl $SETUP_LATEST_VERSION_URL | bash) to update. ***"; }
     fi
 }
 
