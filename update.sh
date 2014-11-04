@@ -29,8 +29,9 @@ cd panamax-remote-agent-installer
 
 git checkout ${git_branch}
 echo $2 > .version
+echo "$next_version" >> .versions
 
-tar -cvzf $next_version . --exclude=.git* --exclude=update.sh --exclude=panamax-*.tar.gz --exclude=pmx-agent-install
+tar -cvzf $next_version . --exclude=.git* --exclude=update.sh --exclude=panamax-*.tar.gz --exclude=pmx-agent-install --exclude=.versions
 cp ${next_version} ${latest_version}
 
 #git commit . -m "Updating to version $2"
@@ -41,5 +42,6 @@ cp ${next_version} ${latest_version}
 sftpTo pmx-agent-install agent
 sftpTo ${next_version} agent
 sftpTo ${latest_version} agent
+sftpTo .versions agent
 
 cd ..

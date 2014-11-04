@@ -1,5 +1,5 @@
 #!/bin/sh
-installer='pmx-agent-latest.tar.gz'
+installer='panamax-agent-latest.tar.gz'
 destination=~/pmx-agent
 curl -O "http://download.panamax.io/agent/$installer"
 mkdir -p ${destination} && tar -C ${destination} -zxvf ${installer}
