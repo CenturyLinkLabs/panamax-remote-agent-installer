@@ -166,7 +166,7 @@ function install_adapter {
         adapter_image_name=${ADAPTER_IMAGE_FLEET}
 
         while [[ "${api_url}" == "" ]]; do
-          read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100:4001/): " api_url
+          read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: http://10.187.241.100:4001): " api_url
         done
 
         adapter_env="-e FLEETCTL_ENDPOINT=\"${api_url}\""
