@@ -87,7 +87,7 @@ function check_update {
     local latest_agent_version=$(get_latest_tag_for_image ${AGENT_IMAGE})
     if [[ "$PMX_ADAPTER_VERSION" != "$latest_adapter_version" || "$PMX_AGENT_VERSION" != "$latest_agent_version" ]]; then
         info
-        echo -e "\nLatest Panamax component versions: \nAdapter:$latest_adapter_version \nAgent:$latest_agent_version"
+        echo -e "\nLatest Panamax component versions: \n\tAgent:$latest_agent_version \n\tAdapter:$latest_adapter_version"
         echo -e "\n*** Panamax agent/adapter images are out of date! Please use the update option to get the latest. Release notes are available at ($DOCUMENTATION_URL) . ***\n"
     else
         info
@@ -97,7 +97,7 @@ function check_update {
 }
 
 function info {
-    echo -e "\nLocal Panamax shell client version:\n\t$PMX_SETUP_VERSION\nLocal Panamax component versions: \n\tAgent:$PMX_AGENT_VERSION\n\tAdapter:$PMX_ADAPTER_VERSION \n"
+    echo -e "\nPanamax Remote Agent Installer version:\n\t$PMX_SETUP_VERSION\nPanamax component versions: \n\tAgent:$PMX_AGENT_VERSION\n\tAdapter:$PMX_ADAPTER_VERSION"
 }
 
 function pmx_agent_containers_installed {
