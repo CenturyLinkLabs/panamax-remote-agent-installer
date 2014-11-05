@@ -2,7 +2,8 @@
 
 SEP='|'
 KEY_NAME="pmx_remote_agent"
-WORK_DIR="$(pwd)"
+WORK_DIR="${HOME}/pmx-agent"
+ENV="${WORK_DIR}/.env"
 AGENT_CONFIG="${WORK_DIR}/agent"
 ADAPTER_CONFIG="${WORK_DIR}/adapter"
 ENV="${WORK_DIR}/.env"
@@ -134,7 +135,6 @@ function install_adapter {
           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100:4001/): " api_url
         done
 
-        set_adapter_config "${adapter_env_var_name}" "${api_url}"
         adapter_env="-e FLEETCTL_ENDPOINT=${api_url}"
     fi
 
@@ -169,7 +169,9 @@ function install_agent {
 
     echo -e "\nStarting Panamax remote agent:"
     download_image ${AGENT_IMAGE}
-    docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID="${PMX_AGENT_ID}" -e REMOTE_AGENT_API_KEY="${PMX_AGENT_PASSWORD}"  --restart=always -v ${AGENT_CONFIG}:/usr/local/share/certs -p ${host_port}:3000 ${AGENT_IMAGE}
+    pmx_agent_run_command="docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=$agent_id -e REMOTE_AGENT_API_KEY=$agent_password  --restart=always -v ${AGENT_CONFIG}:/usr/local/share/certs -v /usr/src/app/db -p ${host_port}:3000 ${AGENT_IMAGE}"
+    set_env_var PMX_AGENT_RUN_COMMAND \""$pmx_agent_run_command"\"
+    $pmx_agent_run_command
 
     echo "https://${common_name}:${host_port}${SEP}${PMX_AGENT_ID}${SEP}${PMX_AGENT_PASSWORD}${SEP}${PUBLIC_CERT}" | base64 > ${AGENT_CONFIG}/panamax_agent_key
     print_agent_key
@@ -180,6 +182,16 @@ function install {
     echo -e "\nInstalling panamax remote agent/adapter..."
     install_adapter
     install_agent
+    set_env_var PMX_SETUP_VERSION \"$(<"$WORK_DIR"\.version)\"
+}
+
+function stop {
+    docker rm -f $AGENT_CONTAINER_NAME $ADAPTER_CONTAINER_NAME
+}
+
+function start {
+    $PMX_ADAPTER_RUN_COMMAND
+    $PMX_AGENT_RUN_COMMAND
 }
 
 function restart {
@@ -259,14 +271,10 @@ function read_params {
 
 function main {
     display_logo
-
-    if [ $UID -ne 0 ] ; then
-        echo -e "\nPlease execute the installer as root.\n\n"
-        exit 1;
-    fi
-
-    cmd_exists curl uuidgen base64 docker
-
+    [[ $UID -eq 0 ]] || { echo -e "\nPlease execute the installer as root.\n\n"; exit 1; }
+    cmd_exists curl uuidgen base64 docker sort
+    touch "$ENV"
+    source "$ENV"
     read_params "$@"
 
     mkdir -p ${ADAPTER_CONFIG}

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+function cmd_exists() {
+    while [ -n "$1" ]
+    do
+        command -v "$1" >/dev/null 2>&1 || { echo >&2 " '$1' is required but not installed.  Aborting."; exit 1; }
+        shift
+    done
+}
+
+cmd_exists curl tar
+
+[[ $UID -eq 0 ]] || { echo -e "\nPlease execute the installer as root.\n\n"; exit 1; }
+installer='panamax-agent-latest.tar.gz'
+destination=${HOME}/pmx-agent
+curl -O "http://download.panamax.io/agent/$installer"
+mkdir -p ${destination} && tar -C ${destination} -zxvf ${installer}
+sudo ln -sf "$destination"/pmx-agent /usr/local/bin/pmx-agent > /dev/null 2>&1
+if [[ "$?" != "0" ]]; then
+    echo "Execute cd $destination && ./pmx-agent to invoke agent setup script."
+    cd $destination
+    sudo ./pmx-agent
+else
+    sudo pmx-agent
+fi
