@@ -1,12 +1,15 @@
 #!/bin/bash
 
+DOCUMENTATION_URL="http://panamax.io"
+DOCKER_HUB_REPO_URL="https://index.docker.io/v1/repositories"
+SETUP_UPDATE_URL="http://download.panamax.io/agent/.versions"
+SETUP_LATEST_VERSION_URL="http://download.panamax.io/agent/pmx-agent-install"
 SEP='|'
 KEY_NAME="pmx_remote_agent"
 WORK_DIR="${HOME}/pmx-agent"
 ENV="${WORK_DIR}/.env"
 AGENT_CONFIG="${WORK_DIR}/agent"
-ADAPTER_CONFIG="${WORK_DIR}/adapter"
-ENV="${WORK_DIR}/.env"
+PMX_AGENT_KEY_FILE="${AGENT_CONFIG}/panamax_agent_key"
 CERT_IMAGE="centurylink/openssl:latest"
 
 ADAPTER_IMAGE_FLEET="centurylink/panamax-fleet-adapter:latest"
@@ -18,15 +21,16 @@ AGENT_CONTAINER_NAME="pmx_agent"
 
 HOST_PORT=3001
 
-echo_install="init:          First time installing Panamax remote agent! - Downloads and installs panamax remote agent."
-echo_restart="restart:       Stops and Starts Panamax remote agent/adapter."
-echo_reinstall="reinstall:     Deletes your current panamax remote agent/adapter and reinstalls latest version."
-echo_info="info:          Displays version of your panamax agent/adapter."
-echo_update="update:        Updates to latest Panamax agent/adapter."
-echo_checkUpdate="check:         Checks for available updates for Panamax agent/adapter."
-echo_uninstall="delete:        Uninstalls Panamax remote agent/adapter."
+echo_install="init:          First time installing Panamax Remote Agent! - Downloads and installs Panamax Remote Agent."
+echo_restart="restart:       Stops and Starts Panamax Remote Agent and Adapter."
+echo_reinstall="reinstall:     Deletes your current Panamax Remote Agent and Adapter and reinstalls latest version."
+echo_info="info:          Displays the version of your Panamax Remote Agent and Adapter."
+echo_update="update:        Updates to latest Panamax Remote Agent and Adapter."
+echo_checkUpdate="check:         Checks for available updates for Panamax Remote Agent and Adapter."
+echo_uninstall="delete:        Uninstalls Panamax Remote Agent and Adapter."
 echo_help="help:          Show this help"
 echo_debug="debug:         Display your current Panamax settings."
+echo_token="token:         Display your current Panamax Remote Agent token."
 
 function display_logo {
     tput clear
@@ -53,10 +57,57 @@ function cmd_exists() {
     done
 }
 
+function get_latest_version {
+    local versions=($@)
+    local arr_versions=( $(
+    for tag in "${versions[@]}"
+    do
+        echo "$tag" | sed 's/\b\([0-9]\)\b/0\1/g'
+    done | sort -r | sed 's/\b0\([0-9]\)/\1/g') )
+    echo "${arr_versions[0]}"
+}
+
+function get_latest_tag_for_image {
+    local image_name=$(echo $1 | sed s#\:.*##g)
+    local image_tags=$(curl --silent $DOCKER_HUB_REPO_URL/$image_name/tags  | grep -o "[0-9]*\.[0-9]*\.[0-9]*"  | awk '{ print $1}')
+    local latest_version=$(get_latest_version $image_tags)
+    echo $latest_version
+}
+
+function check_for_setup_update {
+    if [[ "$PMX_SETUP_VERSION" != "" ]]; then
+        local version_list=$(curl -sL $SETUP_UPDATE_URL | grep -o "[0-9]*\.[0-9]*\.[0-9]*")
+        local latest_version=$(get_latest_version $version_list)
+        [[ "$PMX_SETUP_VERSION" != "$latest_version" ]] && { echo "*** Panamax Remote Agent Installer is out of date! Please run ($ curl $SETUP_LATEST_VERSION_URL | bash && cd ~/pmx-agent && ./pmx-agent reinstall) to update. ***"; }
+    fi
+}
+
+function check_update {
+    local latest_adapter_version=$(get_latest_tag_for_image ${PMX_ADAPTER_IMAGE_NAME})
+    local latest_agent_version=$(get_latest_tag_for_image ${AGENT_IMAGE})
+    if [[ "$PMX_ADAPTER_VERSION" != "$latest_adapter_version" || "$PMX_AGENT_VERSION" != "$latest_agent_version" ]]; then
+        info
+        echo -e "\nLatest Panamax component versions: \n\tAgent:$latest_agent_version \n\tAdapter:$latest_adapter_version"
+        echo -e "\n*** Panamax agent/adapter images are out of date! Please use the update option to get the latest. Release notes are available at ($DOCUMENTATION_URL) . ***\n"
+    else
+        info
+        echo -e "\n You're on the latest version of panamax agent/adapter.\n\n"
+    fi
+    check_for_setup_update
+}
+
+function info {
+    echo -e "\nPanamax Remote Agent Installer version:\n\t$PMX_SETUP_VERSION\nPanamax component versions: \n\tAgent:$PMX_AGENT_VERSION\n\tAdapter:$PMX_ADAPTER_VERSION"
+}
+
+function pmx_agent_containers_installed {
+    [[ $(docker ps -a| grep "${ADAPTER_CONTAINER_NAME}\|${AGENT_CONTAINER_NAME}") != "" ]] && { echo "1"; } || { echo "0"; }
+}
+
 function validate_install {
-    if [[ $(docker ps -a| grep "${ADAPTER_CONTAINER_NAME}\|${AGENT_CONTAINER_NAME}") == "" ]]; then
+    if [[ "$(pmx_agent_containers_installed)" == "0" ]]; then
         echo -e "\nYou don't have remote agent/adapter installed. Please execute init before using other commands.\n\n"
-        exit 1;
+        exit 1
     fi
 }
 
@@ -64,13 +115,12 @@ function uninstall {
     validate_install
     echo -e "\nDeleting panamax remote agent/adapter containers..."
     docker rm -f ${AGENT_CONTAINER_NAME} ${ADAPTER_CONTAINER_NAME}> /dev/null 2>&1
-
     echo -e "\nDeleting panamax remote agent/adapter images..."
-    #docker rmi "${CERT_IMAGE}" "${PMX_ADAPTER_IMAGE_NAME}" "${AGENT_IMAGE}" > /dev/null 2>&1
+    docker rmi "${CERT_IMAGE}" "${PMX_ADAPTER_IMAGE_NAME}" "${AGENT_IMAGE}" > /dev/null 2>&1
 }
 
 function download_image {
-    echo -e "\nDownloading docker image ${1}"
+    echo -e "\ndocker pull ${1}"
     $(docker pull "${1}" > /dev/null 2>&1)&
     PID=$!
     while $(kill -n 0 "${PID}" 2> /dev/null)
@@ -81,26 +131,13 @@ function download_image {
     echo ""
 }
 
-function set_adapter_config {
-    sed -i "/$1=/d" "${ADAPTER_CONFIG}/.config"
-    echo $1=$2 >> "${ADAPTER_CONFIG}/.config"
-}
-
-function set_agent_config {
-    sed -i "/$1=/d" "${AGENT_CONFIG}/.config"
-    echo $1=$2 >> "${AGENT_CONFIG}/.config"
+function set_env_var {
+    sed -i "/$1=/d" "${ENV}"
+    echo $1=$2 >> "${ENV}"
 }
 
 function install_adapter {
-    if [[ $(docker ps -a| grep "${ADAPTER_CONTAINER_NAME}\|${AGENT_CONTAINER_NAME}") != "" ]]; then
-        echo -e "\nYou already have remote agent/adapter installed. Please reinstall.\n\n"
-        exit 1;
-    fi
-
     echo -e "\nInstalling Panamax adapter:"
-
-    mkdir -p ${ADAPTER_CONFIG}
-
     echo -e "\nSelect the ochestrator you want to use: \n"
     select operation in "Kubernetes" "CoreOS Fleet"; do
     case $operation in
@@ -109,14 +146,13 @@ function install_adapter {
     esac
     done
 
-    echo -e "\n\n"
-    adapter_name="Fleet"
+    echo -e "\n"
     if [[ ${cluster_type} == 0 ]]; then
         adapter_name="Kubernetes"
         adapter_image_name=${ADAPTER_IMAGE_KUBER}
 
         while [[ "${api_url}" == "" ]]; do
-          read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100:8080/): " api_url
+          read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100): " api_url
         done
 
         read -p "Enter username for ${adapter_name} API:" api_username
@@ -124,34 +160,32 @@ function install_adapter {
         read -p "Enter password for ${adapter_name} API:" api_password; echo
         stty echo
 
-        set_adapter_config PMX_ADAPTER_API_URL "${api_url}"
-        set_adapter_config PMX_ADAPTER_API_USERNAME "${api_username}"
-        set_adapter_config PMX_ADAPTER_API_PASSWORD "${api_password}"
         adapter_env="-e KUBERNETES_MASTER=${api_url} -e KUBERNETES_USERNAME=${api_username} -e KUBERNETES_PASSWORD=${api_password}"
     else
+        adapter_name="Fleet"
         adapter_image_name=${ADAPTER_IMAGE_FLEET}
 
         while [[ "${api_url}" == "" ]]; do
-          read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100:4001/): " api_url
+          read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: http://10.187.241.100:4001): " api_url
         done
 
         adapter_env="-e FLEETCTL_ENDPOINT=${api_url}"
     fi
 
-    set_adapter_config "PMX_ADAPTER_IMAGE_NAME" \"${adapter_image_name}\"
-
     echo -e "\nStarting Panamax ${adapter_name} adapter:"
     download_image ${adapter_image_name}
-    docker run -d --name ${ADAPTER_CONTAINER_NAME} ${adapter_env} --restart=always ${adapter_image_name}
+    pmx_adapter_run_command="docker run -d --name ${ADAPTER_CONTAINER_NAME} ${adapter_env} --restart=always ${adapter_image_name}"
+    set_env_var "PMX_ADAPTER_RUN_COMMAND" \""$pmx_adapter_run_command"\"
+    $pmx_adapter_run_command
+    set_env_var PMX_ADAPTER_VERSION \"$(get_latest_tag_for_image ${adapter_image_name})\"
+    set_env_var PMX_ADAPTER_IMAGE_NAME \"$adapter_image_name\"
 }
 
 function install_agent {
     echo -e "\nInstalling Panamax remote agent:"
-
     mkdir -p ${AGENT_CONFIG}
-
     while [[ "${common_name}" == "" ]]; do
-      read -p "Enter the public hostname (dev.example.com) or IP Address (10.3.4.5) of the agent: " common_name
+      read -p "Enter the public hostname (dev.example.com, without 'http') or IP Address (10.3.4.5) of the agent: " common_name
     done
 
     read -p "Enter the port to run the agent on (${HOST_PORT}): " host_port
@@ -161,11 +195,8 @@ function install_agent {
     download_image ${CERT_IMAGE}
     docker run --rm  -e COMMON_NAME="${common_name}" -e KEY_NAME="${KEY_NAME}" -v "${AGENT_CONFIG}":/certs "${CERT_IMAGE}" > /dev/null 2>&1
 
-    PUBLIC_CERT="$(<${AGENT_CONFIG}/${KEY_NAME}.crt)"
-    set_agent_config PMX_AGENT_COMMON_NAME \""${common_name}"\"
-    set_agent_config PMX_AGENT_HOST_PORT \""${host_port}"\"
-    set_agent_config PMX_AGENT_AGENT_ID \""$(uuidgen)"\"
-    set_agent_config PMX_AGENT_AGENT_PASSWORD \""$(uuidgen | base64)"\"
+    agent_id="$(uuidgen)"
+    agent_password="$(uuidgen | base64)"
 
     echo -e "\nStarting Panamax remote agent:"
     download_image ${AGENT_IMAGE}
@@ -173,12 +204,18 @@ function install_agent {
     set_env_var PMX_AGENT_RUN_COMMAND \""$pmx_agent_run_command"\"
     $pmx_agent_run_command
 
-    echo "https://${common_name}:${host_port}${SEP}${PMX_AGENT_ID}${SEP}${PMX_AGENT_PASSWORD}${SEP}${PUBLIC_CERT}" | base64 > ${AGENT_CONFIG}/panamax_agent_key
+    public_cert="$(<${AGENT_CONFIG}/${KEY_NAME}.crt)"
+    echo "https://${common_name}:${host_port}${SEP}${agent_id}${SEP}${agent_password}${SEP}${public_cert}" | base64 > $PMX_AGENT_KEY_FILE
     print_agent_key
     echo -e "\nRemote Agent/Adapter installation complete!\n\n"
+    set_env_var PMX_AGENT_VERSION \"$(get_latest_tag_for_image ${AGENT_IMAGE})\"
 }
 
 function install {
+    if [[ "$(pmx_agent_containers_installed)" == "1" ]]; then
+        echo -e "\nYou already have remote agent/adapter installed. Please reinstall.\n\n";
+        exit 1;
+    fi
     echo -e "\nInstalling panamax remote agent/adapter..."
     install_adapter
     install_agent
@@ -197,31 +234,40 @@ function start {
 function restart {
     echo -e "\nRestarting panamax remote agent/adapter..."
     validate_install
-    docker restart ${ADAPTER_CONTAINER_NAME} ${AGENT_CONTAINER_NAME}
+    stop
+    start
 }
 
 function update {
     echo -e "\nUpdating panamax remote agent/adapter..."
     validate_install
-    download_image "${PMX_ADAPTER_IMAGE_NAME}" "${AGENT_IMAGE}"
+    download_image "${PMX_ADAPTER_IMAGE_NAME}"
+    download_image "${AGENT_IMAGE}"
     restart
+    check_for_setup_update
 }
 
 function reinstall {
     echo -e "\nReinstalling panamax remote agent/adapter..."
     validate_install
     uninstall
-    install
+    install "$@"
 }
 
 function print_agent_key {
     echo -e "\n============================== START =============================="
-    cat ${AGENT_CONFIG}/panamax_agent_key
+    cat $PMX_AGENT_KEY_FILE
     echo "============================== END =============================="
     echo -e "\n\nCopy and paste the above (Not including start/end tags) to your local panamax client to connect to this remote agent.\n"
 }
 
 function debug {
+    validate_install
+    cat "$ENV"
+}
+
+function token {
+    validate_install
     print_agent_key
 }
 
@@ -234,33 +280,26 @@ function read_params {
     do
     case $(echo "$i" | tr '[:upper:]' '[:lower:]') in
         install|init)
-        operation=install
-        ;;
+        operation=install;;
         uninstall|delete)
-        operation=uninstall
-        ;;
+        operation=uninstall;;
         restart)
-        operation=restart
-        ;;
+        operation=restart;;
         update)
-        operation=update
-        ;;
+        operation=update;;
         check)
-        operation=check
-        ;;
+        operation=check;;
         info|--version|-v)
-        operation=info
-        ;;
+        operation=info;;
         reinstall)
-        operation=reinstall
-        ;;
+        operation=reinstall;;
         debug)
-        operation=debug
-        ;;
+        operation=debug;;
+        token)
+        operation=token;;
         --help|-h|help)
         show_help;
-        exit 1;
-        ;;
+        exit 1;;
         *)
         show_help;
         exit 1;
@@ -277,37 +316,33 @@ function main {
     source "$ENV"
     read_params "$@"
 
-    mkdir -p ${ADAPTER_CONFIG}
-    mkdir -p ${AGENT_CONFIG}
-    touch "${ENV}"
-    touch "${ADAPTER_CONFIG}/.config"
-    touch "${AGENT_CONFIG}/.config"
-
     if [[ $# -gt 0 ]]; then
         case $operation in
             install)   install "$@" || { show_help; exit 1; } ;;
             reinstall)   reinstall "$@" || { show_help; exit 1; } ;;
             restart) restart;;
-            check) echo "Not Implemented.";;
-            info) echo "Not Implemented.";;
+            check) check_update;;
+            info) info;;
             update) update;;
             uninstall) uninstall;;
             help) show_help;;
             debug) debug;;
+            token) token;;
         esac
     else
         PS3="Please select one of the preceding options: "
-        select operation in "$echo_install" "$echo_restart" "$echo_reinstall" "$echo_checkUpdate" "$echo_update" "$echo_uninstall" "$echo_help" "$echo_debug" "quit"; do
+        select operation in "$echo_install" "$echo_restart" "$echo_reinstall" "$echo_checkUpdate" "$echo_update" "$echo_uninstall" "$echo_debug" "$echo_token" "$echo_help" "quit"; do
         case $operation in
             "$echo_install") install; break;;
             "$echo_reinstall") reinstall; break;;
             "$echo_restart") restart; break;;
-            "$echo_checkUpdate") echo "Not Implemented"; break;;
-            "$echo_info") echo "Not Implemented"; break;;
+            "$echo_checkUpdate") check_update; break;;
+            "$echo_info") info; break;;
             "$echo_update")  update; break;;
             "$echo_uninstall") uninstall; break;;
-            "$echo_help") show_help; break;;
             "$echo_debug")  debug; break;;
+            "$echo_token")  token; break;;
+            "$echo_help") show_help; break;;
             quit) exit 0; break;;
         esac
         done
