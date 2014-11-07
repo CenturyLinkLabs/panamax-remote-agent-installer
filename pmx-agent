@@ -237,7 +237,7 @@ function install {
     echo -e "\nInstalling panamax remote agent/adapter..."
     install_adapter
     install_agent
-    set_env_var PMX_SETUP_VERSION \"$(<"$WORK_DIR"\.version)\"
+    set_env_var PMX_SETUP_VERSION \"$(<"$WORK_DIR"/.version)\"
 }
 
 function stop {
