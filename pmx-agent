@@ -75,6 +75,7 @@ function get_latest_tag_for_image {
 }
 
 function check_for_setup_update {
+    validate_install "1"
     if [[ "$PMX_SETUP_VERSION" != "" ]]; then
         local version_list=$(curl -sL $SETUP_UPDATE_URL | grep -o "[0-9]*\.[0-9]*\.[0-9]*")
         local latest_version=$(get_latest_version $version_list)
@@ -83,6 +84,7 @@ function check_for_setup_update {
 }
 
 function check_update {
+    validate_install "1"
     local latest_adapter_version=$(get_latest_tag_for_image ${PMX_ADAPTER_IMAGE_NAME})
     local latest_agent_version=$(get_latest_tag_for_image ${AGENT_IMAGE})
     if [[ "$PMX_ADAPTER_VERSION" != "$latest_adapter_version" || "$PMX_AGENT_VERSION" != "$latest_agent_version" ]]; then
@@ -96,7 +98,18 @@ function check_update {
     check_for_setup_update
 }
 
+function check_env {
+    if [[ "$PMX_ADAPTER_IMAGE_NAME" == "" ]]; then
+        echo 1
+    elif [[ "$(cat $PMX_AGENT_KEY_FILE)" == "" ]]; then
+        echo 2
+    else
+        echo 0
+    fi
+}
+
 function info {
+    validate_install "1"
     echo -e "\nPanamax Remote Agent Installer version:\n\t$PMX_SETUP_VERSION\nPanamax component versions: \n\tAgent:$PMX_AGENT_VERSION\n\tAdapter:$PMX_ADAPTER_VERSION"
 }
 
@@ -105,14 +118,19 @@ function pmx_agent_containers_installed {
 }
 
 function validate_install {
+    check_env="$1"
     if [[ "$(pmx_agent_containers_installed)" == "0" ]]; then
         echo -e "\nYou don't have remote agent/adapter installed. Please execute init before using other commands.\n\n"
         exit 1
     fi
+    if [[ "$check_env" == "1" && "$(check_env)" != "0" ]]; then
+         echo -e "\nMissing/Corrupt environment file, please reinstall/install.\n\n"
+         exit 1
+    fi
 }
 
 function uninstall {
-    validate_install
+    validate_install "0"
     echo -e "\nDeleting panamax remote agent/adapter containers..."
     docker rm -f ${AGENT_CONTAINER_NAME} ${ADAPTER_CONTAINER_NAME}> /dev/null 2>&1
     echo -e "\nDeleting panamax remote agent/adapter images..."
@@ -219,7 +237,7 @@ function install {
     echo -e "\nInstalling panamax remote agent/adapter..."
     install_adapter
     install_agent
-    set_env_var PMX_SETUP_VERSION \"$(<"$WORK_DIR"\.version)\"
+    set_env_var PMX_SETUP_VERSION \"$(<"$WORK_DIR"/.version)\"
 }
 
 function stop {
@@ -232,15 +250,15 @@ function start {
 }
 
 function restart {
+    validate_install "1"
     echo -e "\nRestarting panamax remote agent/adapter..."
-    validate_install
     stop
     start
 }
 
 function update {
+    validate_install "1"
     echo -e "\nUpdating panamax remote agent/adapter..."
-    validate_install
     download_image "${PMX_ADAPTER_IMAGE_NAME}"
     download_image "${AGENT_IMAGE}"
     restart
@@ -248,8 +266,8 @@ function update {
 }
 
 function reinstall {
+    validate_install "0"
     echo -e "\nReinstalling panamax remote agent/adapter..."
-    validate_install
     uninstall
     install "$@"
 }
@@ -262,12 +280,12 @@ function print_agent_key {
 }
 
 function debug {
-    validate_install
+    validate_install "1"
     cat "$ENV"
 }
 
 function token {
-    validate_install
+    validate_install "1"
     print_agent_key
 }
 
