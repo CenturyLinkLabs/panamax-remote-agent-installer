@@ -216,10 +216,11 @@ function install_agent {
 
     agent_id="$(uuidgen)"
     agent_password="$(uuidgen | base64)"
+    agent_version="$(get_latest_tag_for_image ${AGENT_IMAGE})"
 
     echo -e "\nStarting Panamax remote agent:"
     download_image ${AGENT_IMAGE}
-    pmx_agent_run_command="docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=$agent_id -e REMOTE_AGENT_API_KEY=$agent_password  --restart=always -v ${AGENT_CONFIG}:/usr/local/share/certs -v /usr/src/app/db -p ${host_port}:3000 ${AGENT_IMAGE}"
+    pmx_agent_run_command="docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=$agent_id -e REMOTE_AGENT_API_KEY=$agent_password -e REMOTE_AGENT_VERSION=$agent_version  --restart=always -v ${AGENT_CONFIG}:/usr/local/share/certs -v /usr/src/app/db -p ${host_port}:3000 ${AGENT_IMAGE}"
     set_env_var PMX_AGENT_RUN_COMMAND \""$pmx_agent_run_command"\"
     $pmx_agent_run_command
 
@@ -227,7 +228,7 @@ function install_agent {
     echo "https://${common_name}:${host_port}${SEP}${agent_id}${SEP}${agent_password}${SEP}${public_cert}" | base64 > $PMX_AGENT_KEY_FILE
     print_agent_key
     echo -e "\nRemote Agent/Adapter installation complete!\n\n"
-    set_env_var PMX_AGENT_VERSION \"$(get_latest_tag_for_image ${AGENT_IMAGE})\"
+    set_env_var PMX_AGENT_VERSION \"$agent_version\"
 }
 
 function install {
