@@ -204,6 +204,7 @@ function install_agent {
     mkdir -p ${AGENT_CONFIG}
     while [[ "${common_name}" == "" ]]; do
       read -p "Enter the public hostname (dev.example.com, without 'http') or IP Address (10.3.4.5) of the agent: " common_name
+      [[ "$(echo $common_name | grep -o http)" != "" ]] && { common_name=""; echo -e "\nPlease enter hostname without 'http'\n"; }
     done
 
     read -p "Enter the port to run the agent on (${HOST_PORT}): " host_port
