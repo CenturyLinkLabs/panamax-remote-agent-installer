@@ -319,7 +319,7 @@ function read_params {
         debug) operation=debug;;
         token) operation=token;;
         --dev) PMX_IMAGE_TAG=dev;;
-        --latest) PMX_IMAGE_TAG=latest;;
+        --stable) PMX_IMAGE_TAG=latest;;
         --help|-h|help) show_help; exit 1;;
         *)  show_help; exit 1;
         ;;
