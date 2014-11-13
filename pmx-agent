@@ -10,16 +10,19 @@ WORK_DIR="${HOME}/pmx-agent"
 ENV="${WORK_DIR}/.env"
 AGENT_CONFIG="${WORK_DIR}/agent"
 PMX_AGENT_KEY_FILE="${AGENT_CONFIG}/panamax_agent_key"
-CERT_IMAGE="centurylink/openssl:latest"
+IMAGE_TAG_DEFAULT="latest"
+CERT_IMAGE="centurylink/openssl"
 
-ADAPTER_IMAGE_FLEET="centurylink/panamax-fleet-adapter:latest"
-ADAPTER_IMAGE_KUBER="centurylink/panamax-kubernetes-adapter:latest"
+ADAPTER_IMAGE_FLEET="centurylink/panamax-fleet-adapter"
+ADAPTER_IMAGE_KUBER="centurylink/panamax-kubernetes-adapter"
 ADAPTER_CONTAINER_NAME="pmx_adapter"
 
-AGENT_IMAGE="centurylink/panamax-remote-agent:latest"
+AGENT_IMAGE="centurylink/panamax-remote-agent"
 AGENT_CONTAINER_NAME="pmx_agent"
 
 HOST_PORT=3001
+
+PMX_IMAGE_TAG=${IMAGE_TAG_DEFAULT}
 
 echo_install="init:          First time installing Panamax Remote Agent! - Downloads and installs Panamax Remote Agent."
 echo_restart="restart:       Stops and Starts Panamax Remote Agent and Adapter."
@@ -191,6 +194,7 @@ function install_adapter {
     fi
 
     adapter_version="$(get_latest_tag_for_image ${adapter_image_name})"
+    adapter_image_name=$adapter_image_name:$PMX_IMAGE_TAG
 
     echo -e "\nStarting Panamax ${adapter_name} adapter:"
     download_image ${adapter_image_name}
@@ -211,18 +215,20 @@ function install_agent {
 
     read -p "Enter the port to run the agent on (${HOST_PORT}): " host_port
     host_port=${host_port:-$HOST_PORT}
+    cert_image=$CERT_IMAGE:$PMX_IMAGE_TAG
 
     echo -e "\nGenerating SSL Key"
-    download_image ${CERT_IMAGE}
-    docker run --rm  -e COMMON_NAME="${common_name}" -e KEY_NAME="${KEY_NAME}" -v "${AGENT_CONFIG}":/certs "${CERT_IMAGE}" > /dev/null 2>&1
+    download_image $cert_image
+    docker run --rm  -e COMMON_NAME="${common_name}" -e KEY_NAME="${KEY_NAME}" -v "${AGENT_CONFIG}":/certs $cert_image > /dev/null 2>&1
 
     agent_id="$(uuidgen)"
     agent_password="$(uuidgen | base64)"
     agent_version="$(get_latest_tag_for_image ${AGENT_IMAGE})"
 
     echo -e "\nStarting Panamax remote agent:"
-    download_image ${AGENT_IMAGE}
-    pmx_agent_run_command="docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=$agent_id -e REMOTE_AGENT_API_KEY=$agent_password -e REMOTE_AGENT_VERSION=$agent_version  --restart=always -v ${AGENT_CONFIG}:/usr/local/share/certs -v /usr/src/app/db -p ${host_port}:3000 ${AGENT_IMAGE}"
+    agent_image=$AGENT_IMAGE:$PMX_IMAGE_TAG
+    download_image $agent_image
+    pmx_agent_run_command="docker run -d --name ${AGENT_CONTAINER_NAME} --link ${ADAPTER_CONTAINER_NAME}:adapter -e REMOTE_AGENT_ID=$agent_id -e REMOTE_AGENT_API_KEY=$agent_password -e REMOTE_AGENT_VERSION=$agent_version  --restart=always -v ${AGENT_CONFIG}:/usr/local/share/certs -v /usr/src/app/db -p ${host_port}:3000 $agent_image"
     set_env_var PMX_AGENT_RUN_COMMAND \""$pmx_agent_run_command"\"
     $pmx_agent_run_command
 
@@ -231,6 +237,7 @@ function install_agent {
     print_agent_key
     echo -e "\nRemote Agent/Adapter installation complete!\n\n"
     set_env_var PMX_AGENT_VERSION \"$agent_version\"
+    set_env_var PMX_AGENT_IMAGE_NAME $agent_image
 }
 
 function install {
@@ -264,7 +271,7 @@ function update {
     validate_install "1"
     echo -e "\nUpdating panamax remote agent/adapter..."
     download_image "${PMX_ADAPTER_IMAGE_NAME}"
-    download_image "${AGENT_IMAGE}"
+    download_image "${PMX_AGENT_IMAGE_NAME}"
     restart
     check_for_setup_update
 }
@@ -301,30 +308,18 @@ function read_params {
     for i in "$@"
     do
     case $(echo "$i" | tr '[:upper:]' '[:lower:]') in
-        install|init)
-        operation=install;;
-        uninstall|delete)
-        operation=uninstall;;
-        restart)
-        operation=restart;;
-        update)
-        operation=update;;
-        check)
-        operation=check;;
-        info|--version|-v)
-        operation=info;;
-        reinstall)
-        operation=reinstall;;
-        debug)
-        operation=debug;;
-        token)
-        operation=token;;
-        --help|-h|help)
-        show_help;
-        exit 1;;
-        *)
-        show_help;
-        exit 1;
+        install|init) operation=install;;
+        uninstall|delete) operation=uninstall;;
+        restart) operation=restart;;
+        update) operation=update;;
+        check) operation=check;;
+        info|--version|-v) operation=info;;
+        reinstall) operation=reinstall;;
+        debug) operation=debug;;
+        token) operation=token;;
+        --dev) PMX_IMAGE_TAG=dev;;
+        --help|-h|help) show_help; exit 1;;
+        *)  show_help; exit 1;
         ;;
     esac
     done
@@ -337,11 +332,13 @@ function main {
     touch "$ENV"
     source "$ENV"
     read_params "$@"
+    [[ "$PMX_IMAGE_TAG" == "" ]] && PMX_IMAGE_TAG=$IMAGE_TAG_DEFAULT
+    set_env_var PMX_IMAGE_TAG $PMX_IMAGE_TAG
 
     if [[ $# -gt 0 ]]; then
         case $operation in
-            install)   install "$@" || { show_help; exit 1; } ;;
-            reinstall)   reinstall "$@" || { show_help; exit 1; } ;;
+            install) install "$@" || { show_help; exit 1; } ;;
+            reinstall) reinstall "$@" || { show_help; exit 1; } ;;
             restart) restart;;
             check) check_update;;
             info) info;;
