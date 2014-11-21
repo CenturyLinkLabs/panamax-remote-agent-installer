@@ -159,13 +159,23 @@ function set_env_var {
 
 function install_adapter {
     echo -e "\nInstalling Panamax adapter:"
-    echo -e "\nSelect the ochestrator you want to use: \n"
-    select operation in "Kubernetes" "CoreOS Fleet"; do
-    case $operation in
-        "Kubernetes") cluster_type=0; break;;
-        "CoreOS Fleet") cluster_type=1; break;;
-    esac
-    done
+
+    if [[ "$adapter_type" == "" ]]; then
+        echo -e "\nSelect the ochestrator you want to use: \n"
+        select operation in "Kubernetes" "CoreOS Fleet"; do
+        case $operation in
+            "Kubernetes") cluster_type=0; break;;
+            "CoreOS Fleet") cluster_type=1; break;;
+        esac
+        done
+    else
+        echo -e "\nInstalling $adapter_type orcestrator"
+        if [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "fleet" ]]; then
+            cluster_type=1
+        else
+            cluster_type=0
+        fi
+    fi
 
     echo -e "\n"
     if [[ ${cluster_type} == 0 ]]; then
@@ -208,13 +218,21 @@ function install_adapter {
 function install_agent {
     echo -e "\nInstalling Panamax remote agent:"
     mkdir -p ${AGENT_CONFIG}
+
+    if [[ "${common_name}" != "" ]]; then
+        host_port="3001"
+    fi
+
     while [[ "${common_name}" == "" ]]; do
       read -p "Enter the public hostname (dev.example.com, without 'http') or IP Address (ex: 206.x.x.x) of the agent: " common_name
       [[ "$(echo $common_name | grep -o http)" != "" ]] && { common_name=""; echo -e "\nPlease enter hostname without 'http'\n"; }
     done
 
-    read -p "Enter the port to run the agent on (${HOST_PORT}): " host_port
-    host_port=${host_port:-$HOST_PORT}
+    if [[ "$host_port" == "" ]]; then
+        read -p "Enter the port to run the agent on (${HOST_PORT}): " host_port
+        host_port=${host_port:-$HOST_PORT}
+    fi
+
     cert_image=$CERT_IMAGE:$PMX_IMAGE_TAG
 
     echo -e "\nGenerating SSL Key"
@@ -318,6 +336,9 @@ function read_params {
         reinstall) operation=reinstall;;
         debug) operation=debug;;
         token) operation=token;;
+        -agent-ip=*) common_name="${i#*=}";;
+        -api=*) api_url="${i#*=}";;
+        -adapter-type=*) adapter_type="${i#*=}";;
         --dev) PMX_IMAGE_TAG=dev;;
         --stable) PMX_IMAGE_TAG=latest;;
         --help|-h|help) show_help; exit 1;;
@@ -328,6 +349,7 @@ function read_params {
 }
 
 function main {
+
     display_logo
     [[ $UID -eq 0 ]] || { echo -e "\nPlease execute the installer as root.\n\n"; exit 1; }
     cmd_exists curl uuidgen base64 docker sort
