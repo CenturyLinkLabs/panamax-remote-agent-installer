@@ -336,7 +336,7 @@ function read_params {
         reinstall) operation=reinstall;;
         debug) operation=debug;;
         token) operation=token;;
-        -agent_ip=*) common_name="${i#*=}";;
+        -agent-ip=*) common_name="${i#*=}";;
         -api=*) api_url="${i#*=}";;
         -adapter-type=*) adapter_type="${i#*=}";;
         --dev) PMX_IMAGE_TAG=dev;;
