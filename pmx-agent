@@ -169,7 +169,7 @@ function install_adapter {
         esac
         done
     else
-        echo -e "\nInstalling $adapter_type orcestrator"
+        echo -e "\nInstalling $adapter_type orchestrator"
         if [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "fleet" ]]; then
             cluster_type=1
         else
