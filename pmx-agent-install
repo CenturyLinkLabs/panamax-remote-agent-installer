@@ -8,7 +8,7 @@ function cmd_exists() {
     done
 }
 
-cmd_exists curl tar
+cmd_exists docker curl tar
 
 [[ $UID -eq 0 ]] || { echo -e "\nPlease execute the installer as root.\n\n"; exit 1; }
 installer='panamax-agent-latest.tar.gz'
