@@ -146,7 +146,6 @@ function download_image {
     PID=$!
     while $(kill -n 0 "${PID}" 2> /dev/null)
     do
-      echo -n '.'
       sleep 2
     done
     echo ""
