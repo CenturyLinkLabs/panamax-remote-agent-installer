@@ -186,10 +186,12 @@ function install_adapter {
           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100): " api_url
         done
 
-        read -p "Enter username for ${adapter_name} API:" api_username
-        stty -echo
-        read -p "Enter password for ${adapter_name} API:" api_password; echo
-        stty echo
+	if [[ "$adapter_type" == "" ]]; then #manual install
+            read -p "Enter username for ${adapter_name} API:" api_username
+            stty -echo
+	    read -p "Enter password for ${adapter_name} API:" api_password; echo
+            stty echo
+	fi
 
         adapter_env="-e KUBERNETES_MASTER=${api_url} -e KUBERNETES_USERNAME=${api_username} -e KUBERNETES_PASSWORD=${api_password}"
     else
@@ -338,6 +340,8 @@ function read_params {
         token) operation=token;;
         -agent-ip=*) common_name="${i#*=}";;
         -api=*) api_url="${i#*=}";;
+	-api-username=*)api_username="${i#*=}";;
+	-api-password=*)api_password="${i#*=}";;
         -adapter-type=*) adapter_type="${i#*=}";;
         --dev) PMX_IMAGE_TAG=dev;;
         --stable) PMX_IMAGE_TAG=latest;;
