@@ -17,6 +17,7 @@ CERT_IMAGE="centurylink/openssl"
 
 ADAPTER_IMAGE_FLEET="centurylink/panamax-fleet-adapter"
 ADAPTER_IMAGE_KUBER="centurylink/panamax-kubernetes-adapter"
+ADAPTER_IMAGE_MARATHON="centurylink/panamax-marathon-adapter"
 ADAPTER_CONTAINER_NAME="pmx_adapter"
 
 AGENT_IMAGE="centurylink/panamax-remote-agent"
@@ -163,15 +164,18 @@ function install_adapter {
 
     if [[ "$adapter_type" == "" ]]; then
         echo -e "\nSelect the ochestrator you want to use: \n"
-        select operation in "Kubernetes" "CoreOS Fleet"; do
+        select operation in "Kubernetes" "CoreOS Fleet" "Marathon"; do
         case $operation in
             "Kubernetes") cluster_type=0; break;;
             "CoreOS Fleet") cluster_type=1; break;;
+            "Marathon") cluster_type=2; break;;
         esac
         done
     else
         echo -e "\nInstalling $adapter_type orchestrator"
-        if [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "fleet" ]]; then
+        if [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "marathon" ]]; then
+            cluster_type=2
+        elif [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "fleet" ]]; then
             cluster_type=1
         else
             cluster_type=0
@@ -187,15 +191,15 @@ function install_adapter {
           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: https://10.187.241.100): " api_url
         done
 
-	if [[ "$adapter_type" == "" ]]; then #manual install
+        if [[ "$adapter_type" == "" ]]; then #manual install
             read -p "Enter username for ${adapter_name} API:" api_username
             stty -echo
-	    read -p "Enter password for ${adapter_name} API:" api_password; echo
+            read -p "Enter password for ${adapter_name} API:" api_password; echo
             stty echo
-	fi
+        fi
 
         adapter_env="-e KUBERNETES_MASTER=${api_url} -e KUBERNETES_USERNAME=${api_username} -e KUBERNETES_PASSWORD=${api_password}"
-    else
+    elif [[ ${cluster_type} == 1 ]]; then
         adapter_name="Fleet"
         adapter_image_name=${ADAPTER_IMAGE_FLEET}
 
@@ -204,6 +208,15 @@ function install_adapter {
         done
 
         adapter_env="-e FLEETCTL_ENDPOINT=${api_url}"
+    else
+        adapter_name="Marathon"
+        adapter_image_name=${ADAPTER_IMAGE_MARATHON}
+
+        while [[ "${api_url}" == "" ]]; do
+           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: http://10.187.241.100:8001): " api_url
+        done
+
+        adapter_env="-e MARATHON_ENDPOINT=${api_url}"
     fi
 
     adapter_version="$(get_latest_tag_for_image ${adapter_image_name})"
