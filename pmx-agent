@@ -213,7 +213,7 @@ function install_adapter {
         adapter_image_name=${ADAPTER_IMAGE_MARATHON}
 
         while [[ "${api_url}" == "" ]]; do
-           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: http://10.187.241.100:8001): " api_url
+           read -p "Enter the API endpoint to access the ${adapter_name} cluster (e.g: http://10.187.241.100:8080): " api_url
         done
 
         adapter_env="-e MARATHON_ENDPOINT=${api_url}"
