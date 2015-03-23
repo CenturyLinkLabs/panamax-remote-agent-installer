@@ -192,10 +192,6 @@ function install_adapter {
         done
 
         if [[ "$adapter_type" == "" ]]; then #manual install
-            read -p "Enter username for ${adapter_name} API:" api_username
-            stty -echo
-            read -p "Enter password for ${adapter_name} API:" api_password; echo
-            stty echo
             read -p "Enter external load balancer IP address for ${adapter_name} cluster (e.g: 206.100.100.100, leave blank if not needed):" kube_lb_ip
         fi
 
