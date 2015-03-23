@@ -195,7 +195,7 @@ function install_adapter {
             read -p "Enter external load balancer IP address for ${adapter_name} cluster (e.g: 206.100.100.100, leave blank if not needed):" kube_lb_ip
         fi
 
-        adapter_env="-e KUBERNETES_MASTER=${api_url} -e KUBERNETES_USERNAME=${api_username} -e KUBERNETES_PASSWORD=${api_password} -e SERVICE_PUBLIC_IP=${kube_lb_ip} "
+        adapter_env="-e KUBERNETES_MASTER=${api_url} -e SERVICE_PUBLIC_IP=${kube_lb_ip} "
     elif [[ ${cluster_type} == 1 ]]; then
         adapter_name="Fleet"
         adapter_image_name=${ADAPTER_IMAGE_FLEET}
@@ -352,8 +352,6 @@ function read_params {
         -kube-lb-ip=*)  kube_lb_ip="${i#*=}";;
         -agent-ip=*) common_name="${i#*=}";;
         -api=*) api_url="${i#*=}";;
-	    -api-username=*)api_username="${i#*=}";;
-	    -api-password=*)api_password="${i#*=}";;
         -adapter-type=*) adapter_type="${i#*=}";;
         --dev) PMX_IMAGE_TAG=dev;;
         --stable) PMX_IMAGE_TAG=latest;;
