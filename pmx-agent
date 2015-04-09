@@ -249,8 +249,16 @@ function install_agent {
     cert_image=$CERT_IMAGE:$PMX_IMAGE_TAG
 
     echo -e "\nGenerating SSL Key"
+    san_ip="10.0.0.200"
+    if [[ "$(echo $common_name | grep -o  "[0-9]*\.[0-9]*\.[0-9]*")" != "" ]]; then
+       san_ip=$common_name
+    fi
+
     download_image $cert_image
-    docker run --rm  -e COMMON_NAME="${common_name}" -e KEY_NAME="${KEY_NAME}" -v "${AGENT_CONFIG}":/certs $cert_image > /dev/null 2>&1
+    docker run --rm -e SAN_IP="${san_ip}" -e COMMON_NAME="${common_name}" -v "${AGENT_CONFIG}":/certs -v ${WORK_DIR}/openssl.cnf:/root/ssl_override.cnf $cert_image sh -c "/usr/bin/openssl genrsa -out /certs/${KEY_NAME}.key 1024 && \
+            /usr/bin/openssl req  -new -newkey rsa:4096 -days 365 -nodes -subj \"/C=/ST=/L=/O=/CN=${common_name}\" -keyout /certs/${KEY_NAME}.key -out /certs/${KEY_NAME}.csr -config /root/ssl_override.cnf && \
+            /usr/bin/openssl x509 -req -days 365 -in /certs/${KEY_NAME}.csr -signkey /certs/${KEY_NAME}.key -out /certs/${KEY_NAME}.crt -extensions v3_ca -extfile /root/ssl_override.cnf"
+
 
     agent_id="$(uuidgen)"
     agent_password="$(uuidgen | base64)"
