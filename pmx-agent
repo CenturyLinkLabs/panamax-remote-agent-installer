@@ -234,7 +234,7 @@ function install_adapter {
 
     echo -e "\nStarting Panamax ${adapter_name} adapter:"
     download_image ${adapter_image_name}
-    pmx_adapter_run_command="docker run -d --name ${ADAPTER_CONTAINER_NAME} ${adapter_env} -e ADAPTER_VERSION=$adapter_version --restart=always ${adapter_image_name}"
+    pmx_adapter_run_command="docker run -d --name ${ADAPTER_CONTAINER_NAME} ${adapter_env} -v /etc/systemd/system:/etc/systemd/system -e ADAPTER_VERSION=$adapter_version --restart=always ${adapter_image_name}"
     set_env_var "PMX_ADAPTER_RUN_COMMAND" \""$pmx_adapter_run_command"\"
     $pmx_adapter_run_command
     set_env_var PMX_ADAPTER_VERSION \"$adapter_version\"
