@@ -48,7 +48,7 @@ function display_logo {
     echo -e "\033[0;31;32m██║      ███████║ ███║  ███║ ███████║\033[0m\033[31;37m ██║╚██║ ██║ ███████║ ██╔╝ ██╗\033[0m"
     echo -e "\033[0;31;32m╚═╝      ╚══════╝ ╚══╝  ╚══╝ ╚══════╝\033[0m\033[31;37m ╚═╝ ╚═╝ ╚═╝ ╚══════╝ ╚═╝  ╚═╝\033[0m"
     echo ""
-    echo -e "CenturyLink Labs - http://www.centurylinklabs.com/\n"
+    echo -e "CenturyLink Labs - https://labs.ctl.io/\n"
 }
 
 function cmd_exists() {
