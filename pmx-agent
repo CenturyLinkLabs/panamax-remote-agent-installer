@@ -20,7 +20,7 @@ ADAPTER_IMAGE_KUBER="centurylink/panamax-kubernetes-adapter"
 ADAPTER_IMAGE_MARATHON="centurylink/panamax-marathon-adapter"
 ADAPTER_CONTAINER_NAME="pmx_adapter"
 
-AGENT_IMAGE="centurylink/panamax-remote-agent"
+AGENT_IMAGE="centurylink/panamax-remote-agent-go"
 AGENT_CONTAINER_NAME="pmx_agent"
 
 HOST_PORT=3001
