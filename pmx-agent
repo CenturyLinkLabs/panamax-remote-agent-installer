@@ -18,6 +18,7 @@ CERT_IMAGE="centurylink/openssl"
 ADAPTER_IMAGE_FLEET="centurylink/panamax-fleet-adapter"
 ADAPTER_IMAGE_KUBER="centurylink/panamax-kubernetes-adapter"
 ADAPTER_IMAGE_MARATHON="centurylink/panamax-marathon-adapter"
+ADAPTER_IMAGE_PHOTON="centurylink/panamax-photon-adapter"
 ADAPTER_CONTAINER_NAME="pmx_adapter"
 
 AGENT_IMAGE="centurylink/panamax-remote-agent"
@@ -164,16 +165,19 @@ function install_adapter {
 
     if [[ "$adapter_type" == "" ]]; then
         echo -e "\nSelect the ochestrator you want to use: \n"
-        select operation in "Kubernetes" "CoreOS Fleet" "Marathon"; do
+        select operation in "Kubernetes" "CoreOS Fleet" "Marathon" "Photon"; do
         case $operation in
             "Kubernetes") cluster_type=0; break;;
             "CoreOS Fleet") cluster_type=1; break;;
             "Marathon") cluster_type=2; break;;
+            "Photon") cluster_type=3; break;;
         esac
         done
     else
         echo -e "\nInstalling $adapter_type orchestrator"
-        if [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "marathon" ]]; then
+        if [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "photon" ]]; then
+            cluster_type=3
+        elif [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "marathon" ]]; then
             cluster_type=2
         elif [[ "$(echo $adapter_type | tr '[:upper:]' '[:lower:]')" == "fleet" ]]; then
             cluster_type=1
@@ -205,7 +209,7 @@ function install_adapter {
         done
 
         adapter_env="-e FLEETCTL_ENDPOINT=${api_url}"
-    else
+    elif  [[ ${cluster_type} == 2 ]]; then
         adapter_name="Marathon"
         adapter_image_name=${ADAPTER_IMAGE_MARATHON}
 
@@ -214,6 +218,15 @@ function install_adapter {
         done
 
         adapter_env="-e MARATHON_ENDPOINT=${api_url}"
+    else
+        adapter_name="Photon"
+        adapter_image_name=${ADAPTER_IMAGE_PHOTON}
+
+        while [[ "${api_url}" == "" ]]; do
+           read -p "Enter the API endpoint to access the ${adapter_name} (e.g: http://10.187.241.100): " api_url
+        done
+
+        adapter_env="-e PHOTON_ENDPOINT=${api_url}"
     fi
 
     adapter_version="$(get_latest_tag_for_image ${adapter_image_name})"
@@ -221,7 +234,7 @@ function install_adapter {
 
     echo -e "\nStarting Panamax ${adapter_name} adapter:"
     download_image ${adapter_image_name}
-    pmx_adapter_run_command="docker run -d --name ${ADAPTER_CONTAINER_NAME} ${adapter_env} -e ADAPTER_VERSION=$adapter_version --restart=always ${adapter_image_name}"
+    pmx_adapter_run_command="docker run -d --name ${ADAPTER_CONTAINER_NAME} ${adapter_env} -v /etc/systemd/system:/etc/systemd/system -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket -e ADAPTER_VERSION=$adapter_version --restart=always ${adapter_image_name}"
     set_env_var "PMX_ADAPTER_RUN_COMMAND" \""$pmx_adapter_run_command"\"
     $pmx_adapter_run_command
     set_env_var PMX_ADAPTER_VERSION \"$adapter_version\"
